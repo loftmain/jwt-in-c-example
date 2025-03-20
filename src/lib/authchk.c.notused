@@ -1,0 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+extern int loging(char *msg,...);
+
+int authchk()
+{
+  if(ck_lic() < 0)
+    {
+     loging("IT TOOL license error!\n");
+     exit(1);
+     }
+    
+  return(0);
+}

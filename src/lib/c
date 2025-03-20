@@ -1,0 +1,3 @@
+Makefile:			  get_masterenv.o get_s2o_hostname.o get_s2opid.o get_linuxtype.o get_osrelease.o mtrim.o \
+get_linuxtype.c:   /*  FILENAME     : get_linuxtype.c                                      */
+get_linuxtype.c:int get_linuxtype(char* _linuxtype, char* _detail)

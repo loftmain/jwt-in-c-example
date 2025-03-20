@@ -1,0 +1,305 @@
+/*
+   $Id: it_loging.c,v 1.7 2002/11/06 srp Exp $
+
+   Copyright (c) 2000, 2001, 2002
+             i-TOP System Inc.  All rights reserved.
+
+   2002-12-13
+	 * message loging
+*/
+
+#include "config.h"
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <sys/ipc.h>
+#include <dirent.h>
+#ifdef AIX
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <time.h>
+#include <stdarg.h>
+#include <syslog.h>
+#include <stdlib.h>
+#include "../IT.h"
+
+#define MKDIR "/bin/mkdir"
+int it_patch_loging(char *format,...);
+
+extern void timestr(char *tim);
+extern int get_cfg(char* ENV, char* value);
+extern int size_check(char *file, int size);
+extern int fcopy(char *src, char *dest, mode_t pmode);
+
+int it_loging(char *format,...)
+{
+  	FILE 	*fp;
+
+  	va_list argptr;
+
+  	char 	t[16];
+	char 	it_home[256], itlog[256], backfile[256];
+
+	if (IS_NOS2O_AGENT == 1) return 0;
+
+  	memset(t, 0, sizeof t);
+  	memset(it_home, 0, sizeof it_home);
+
+  	timestr(t);
+  	if (get_cfg("IT_HOME", it_home) < 0) {
+		if (IS_NOS2O_AGENT == 2) return 0;
+     	openlog("S2O", LOG_PID, LOG_DAEMON);
+     	syslog(LOG_ERR, "get_cfg(): can't find it_home\n");
+     	closelog();  
+     	return(-1);
+    }
+  	memset(itlog, 0x00, sizeof itlog);
+  	sprintf(itlog, "%s/IT.log", it_home);
+
+  	if (size_check(itlog, it_log_size) < 0) {
+     	memset(backfile, 0, sizeof backfile);
+     	sprintf(backfile, "%s.bak", itlog);
+     	fcopy(itlog, backfile, 0600);
+     	if ((fp = fopen(itlog, "w")) == NULL) {
+			if (IS_NOS2O_AGENT == 2) return 0;
+        	openlog("S2O",LOG_PID,LOG_DAEMON);
+        	syslog(LOG_ERR,"file(%s) create error!", itlog);
+        	closelog();
+        	return(-1);
+       	}
+	} else {
+      	if ((fp = fopen(itlog, "a")) == NULL) {
+			if (IS_NOS2O_AGENT == 2) return 0;
+         	openlog("S2O",LOG_PID,LOG_DAEMON);
+         	syslog(LOG_ERR,"file(%s) append error!", itlog);
+         	closelog();
+         	return(-1);
+        }
+	}
+  	fprintf(fp, "%s ", t);
+  	va_start(argptr, format);
+  	vfprintf(fp, format, argptr);
+  	va_end(argptr);
+  	fclose(fp);
+  	chmod(itlog, 0666); 
+  	return(0);
+}
+
+int it_dmsloging(char *format,...)
+{
+  	FILE 	*fp;
+	DIR		*dp;
+  	va_list argptr;
+  	char 	t[16];
+	char 	it_home[256], itlog[256], backfile[256];
+	char	bufstr[256];
+	int		ret;
+	
+
+  	memset(t, 0, sizeof t);
+  	memset(it_home, 0, sizeof it_home);
+
+  	timestr(t);
+  	if (get_cfg("IT_HOME", it_home) < 0) {
+     	openlog("S2O", LOG_PID, LOG_DAEMON);
+     	syslog(LOG_ERR, "get_cfg(): can't find it_home\n");
+     	closelog();  
+     	return(-1);
+    }
+	memset(bufstr, 0, sizeof bufstr);
+	sprintf(bufstr, "%s/DMS/log", it_home);
+
+	if ((dp = opendir(bufstr)) == NULL) {
+		memset(bufstr, 0, sizeof bufstr);
+		sprintf(bufstr, "%s -p %s/DMS/log", MKDIR, it_home);
+		ret = system(bufstr);
+	} else
+		closedir(dp);
+
+  	memset(itlog, 0x00, sizeof itlog);
+  	sprintf(itlog, "%s/DMS/log/IT.dmslog", it_home);
+
+  	if (size_check(itlog, it_log_size) < 0) {
+     	memset(backfile, 0, sizeof backfile);
+     	sprintf(backfile, "%s.bak", itlog);
+     	fcopy(itlog, backfile, 0600);
+     	if ((fp = fopen(itlog, "w")) == NULL) {
+        	openlog("S2O",LOG_PID,LOG_DAEMON);
+        	syslog(LOG_ERR,"file(%s) create error!", itlog);
+        	closelog();
+        	return(-1);
+       	}
+	} else {
+      	if ((fp = fopen(itlog, "a")) == NULL) {
+         	openlog("S2O",LOG_PID,LOG_DAEMON);
+         	syslog(LOG_ERR,"file(%s) append error!", itlog);
+         	closelog();
+         	return(-1);
+        }
+	}
+  	fprintf(fp, "%s ", t);
+  	va_start(argptr, format);
+  	vfprintf(fp, format, argptr);
+  	va_end(argptr);
+  	fclose(fp);
+  	chmod(itlog, 0666); 
+  	return(0);
+}
+
+int it_setloging(char *format,...)
+{
+  	FILE 	*fp;
+	DIR		*dp;
+  	va_list argptr;
+  	char 	t[16];
+	char 	it_home[256], itlog[256], backfile[256];
+	char	bufstr[256];
+	
+
+  	memset(t, 0, sizeof t);
+  	memset(it_home, 0, sizeof it_home);
+
+  	timestr(t);
+  	if (get_cfg("IT_HOME", it_home) < 0) {
+     	openlog("S2O", LOG_PID, LOG_DAEMON);
+     	syslog(LOG_ERR, "get_cfg(): can't find it_home\n");
+     	closelog();  
+     	return(-1);
+    }
+
+  	memset(itlog, 0x00, sizeof itlog);
+  	sprintf(itlog, "%s/IT.setlog", it_home);
+
+  	if (size_check(itlog, it_log_size) < 0) {
+     	memset(backfile, 0, sizeof backfile);
+     	sprintf(backfile, "%s.bak", itlog);
+     	fcopy(itlog, backfile, 0600);
+     	if ((fp = fopen(itlog, "w")) == NULL) {
+        	openlog("S2O",LOG_PID,LOG_DAEMON);
+        	syslog(LOG_ERR,"file(%s) create error!", itlog);
+        	closelog();
+        	return(-1);
+       	}
+	} else {
+      	if ((fp = fopen(itlog, "a")) == NULL) {
+         	openlog("S2O",LOG_PID,LOG_DAEMON);
+         	syslog(LOG_ERR,"file(%s) append error!", itlog);
+         	closelog();
+         	return(-1);
+        }
+	}
+  	fprintf(fp, "%s ", t);
+  	va_start(argptr, format);
+  	vfprintf(fp, format, argptr);
+  	va_end(argptr);
+  	fclose(fp);
+  	chmod(itlog, 0666); 
+  	return(0);
+}
+
+int it_patch_loging(char *format,...)
+{
+    FILE    *fp;
+    va_list argptr;
+    char    t[16];
+    char itlog[256], backfile[256];
+    char tmsg[4096];
+	char it_home[256];
+
+	memset(it_home, 0, sizeof it_home);
+  	if (get_cfg("IT_HOME", it_home) < 0) {
+       it_loging("IT.patchlog get(IT_HOME) error - %s", tmsg);
+     	return(-1);
+    }
+
+    memset(tmsg, 0x00, sizeof tmsg);
+    va_start(argptr, format);
+    vsprintf(tmsg, format, argptr);
+    va_end(argptr);
+
+    memset(t, 0, sizeof t);
+
+    timestr(t);
+    memset(itlog, 0x00, sizeof itlog);
+    sprintf(itlog, "%s/IT.patchlog", it_home);
+
+    if (size_check(itlog, it_log_size) < 0) {
+        memset(backfile, 0, sizeof backfile);
+        sprintf(backfile, "%s.bak", itlog);
+        fcopy(itlog, backfile, 0600);
+        if ((fp = fopen(itlog, "w")) == NULL) {
+            it_loging("IT.patchlog open error - %s", tmsg);
+            return(-1);
+        }
+    } else {
+        if ((fp = fopen(itlog, "a")) == NULL) {
+            it_loging("IT.patchlog open error - %s", tmsg);
+            return(-1);
+        }
+    }
+    fprintf(fp, "%s ", t);
+    fprintf(fp, "%s", tmsg);
+    fclose(fp);
+    chmod(itlog, 0666);
+    return(0);
+}
+
+int ___it_debugloging(char* _daemon, int _debugtype, char *format,...)
+{
+    FILE    *fp;
+    va_list argptr;
+    char    t[16];
+    char    itdebuglog[256], backfile[256];
+    char    bufstr[256];
+	char	it_home[256];
+    char	tmsg[4096];
+
+	if ( _debugtype == 1) 
+	{
+		memset(it_home, 0, sizeof it_home);
+  		if (get_cfg("IT_HOME", it_home) < 0) {
+	       	it_loging("%s get(IT_HOME) error - %s", _daemon, tmsg);
+     		return(-1);
+		}
+
+    	memset(t, 0, sizeof t);
+    	timestr(t);
+
+    	memset(itdebuglog, 0x00, sizeof itdebuglog);
+    	sprintf(itdebuglog, "%s/IT.debuglog", it_home);
+
+    	if (size_check(itdebuglog, it_log_size) < 0) {
+        	memset(backfile, 0, sizeof backfile);
+        	sprintf(backfile, "%s.bak", itdebuglog);
+        	fcopy(itdebuglog, backfile, 0600);
+        	if ((fp = fopen(itdebuglog, "w")) == NULL) {
+            	it_loging("%s: file(%s) create error!", _daemon, itdebuglog);
+            	return(-1);
+        	}
+    	} else {
+        	if ((fp = fopen(itdebuglog, "a")) == NULL) {
+            	it_loging("%s: file(%s) append error!", _daemon, itdebuglog);
+            	return(-1);
+        	}
+    	}
+    	fprintf(fp, "%s ", t);
+    	va_start(argptr, format);
+    	vfprintf(fp, format, argptr);
+    	va_end(argptr);
+    	fclose(fp);
+    	chmod(itdebuglog, 0666);
+	}
+
+    return(0);
+}
+

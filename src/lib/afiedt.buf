@@ -1,0 +1,2 @@
+select passwd ,PASSWD_ENCRYPT_TYPE from cu_user where userid='itops01'
+/
